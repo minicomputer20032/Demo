@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Quiz Vui Nhộn</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+        /* ----- Reset và nền ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(145deg, #e0f7fa 0%, #fce4ec 100%);
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Bong bóng bay (hiệu ứng vui, ít lãng mạn) */
+        .bubble {
+            position: fixed;
+            border-radius: 50%;
+            opacity: 0.25;
+            pointer-events: none;
+            z-index: 0;
+            animation: floatBubble linear infinite;
+        }
+        @keyframes floatBubble {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 0.25; }
+            90% { opacity: 0.25; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+
+        /* ----- Card chính ----- */
+        .quiz-container {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 40px 40px 40px 12px;
+            padding: 30px 28px 35px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.3);
+            position: relative;
+            z-index: 10;
+            transition: all 0.3s ease;
+            min-height: 460px;
+        }
+
+        /* ----- Progress bar ----- */
+        .progress-wrap {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f06292, #ffb74d);
+            border-radius: 10px;
+            transition: width 0.4s ease;
+        }
+
+        /* ----- Câu hỏi ----- */
+        .question-step {
+            display: none;
+            animation: fadeUp 0.45s ease forwards;
+        }
+        .question-step.active {
+            display: block;
+        }
+
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(18px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .q-number {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #f06292;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .q-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #2d2d2d;
+            margin-bottom: 18px;
+            line-height: 1.5;
+        }
+
+        /* Input, textarea, select chung */
+        .input-field {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 60px;
+            font-size: 1rem;
+            font-family: 'Quicksand', sans-serif;
+            background: white;
+            transition: 0.25s;
+            outline: none;
+            color: #333;
+        }
+        .input-field:focus {
+            border-color: #f06292;
+            box-shadow: 0 0 0 4px rgba(240, 98, 146, 0.15);
+        }
+        .input-field::placeholder {
+            color: #aaa;
+            font-weight: 400;
+        }
+
+        /* Đáp án trắc nghiệm */
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 12px 0 8px;
+        }
+        .option-btn {
+            background: white;
+            border: 2px solid #e8e8e8;
+            border-radius: 60px;
+            padding: 14px 20px;
+            font-size: 1rem;
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+            transition: 0.2s;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .option-btn:hover:not(.disabled-opt) {
+            border-color: #f06292;
+            background: #fce4ec;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(240, 98, 146, 0.10);
+        }
+        .option-btn .opt-label {
+            display: inline-block;
+            min-width: 28px;
+            font-weight: 700;
+            color: #f06292;
+        }
+        .option-btn.correct {
+            border-color: #66bb6a;
+            background: #e8f5e9;
+        }
+        .option-btn.wrong {
+            border-color: #ef5350;
+            background: #ffebee;
+        }
+        .option-btn.disabled-opt {
+            cursor: default;
+            opacity: 0.7;
+        }
+
+        /* Nút tiếp theo */
+        .btn-next {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 60px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, #f06292, #ff8a65);
+            color: white;
+            cursor: pointer;
+            transition: 0.25s;
+            box-shadow: 0 8px 24px rgba(240, 98, 146, 0.25);
+            margin-top: 18px;
+        }
+        .btn-next:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(240, 98, 146, 0.35);
+        }
+        .btn-next:active {
+            transform: scale(0.97);
+        }
+        .btn-next:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Hiển thị thông tin đặc biệt (câu 3, 6) */
+        .info-box {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 24px;
+            padding: 20px 22px;
+            border-left: 6px solid #f06292;
+            margin: 14px 0;
+            line-height: 1.7;
+            font-size: 1rem;
+            color: #333;
+        }
+        .info-box .highlight {
+            font-weight: 700;
+            color: #d81b60;
+        }
+
+        /* Lyric (câu 6) */
+        .lyric-box {
+            background: #1a1a2e;
+            color: #f5f5f5;
+            border-radius: 24px;
+            padding: 24px 22px;
+            font-style: italic;
+            line-height: 2;
+            margin: 14px 0;
+            text-align: center;
+            font-size: 0.95rem;
+            border: 2px solid #ffb74d;
+            position: relative;
+            min-height: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .lyric-box .lyric-line {
+            opacity: 0;
+            animation: lyricFade 0.6s forwards;
+        }
+        .lyric-box .lyric-line:nth-child(1) { animation-delay: 0.1s; }
+        .lyric-box .lyric-line:nth-child(2) { animation-delay: 0.8s; }
+        .lyric-box .lyric-line:nth-child(3) { animation-delay: 1.5s; }
+        .lyric-box .lyric-line:nth-child(4) { animation-delay: 2.2s; }
+        .lyric-box .lyric-line:nth-child(5) { animation-delay: 2.9s; }
+        .lyric-box .lyric-line:nth-child(6) { animation-delay: 3.6s; }
+
+        @keyframes lyricFade {
+            0% { opacity: 0; transform: translateY(8px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-play {
+            background: #ffb74d;
+            border: none;
+            padding: 10px 28px;
+            border-radius: 60px;
+            font-weight: 700;
+            font-family: 'Quicksand', sans-serif;
+            color: #1a1a2e;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: 0.2s;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 12px rgba(255, 183, 77, 0.3);
+        }
+        .btn-play:hover {
+            transform: scale(1.04);
+        }
+
+        /* Câu 10: nút "Không" chạy trốn */
+        .btn-no-run {
+            display: inline-block;
+            padding: 12px 32px;
+            border-radius: 60px;
+            border: 2px solid #ef5350;
+            background: white;
+            color: #ef5350;
+            font-weight: 700;
+            font-size: 1rem;
+            font-family: 'Quicksand', sans-serif;
+            cursor: pointer;
+            transition: 0.08s linear;
+            position: relative;
+            min-width: 100px;
+            text-align: center;
+        }
+        .btn-no-run:hover {
+            background: #ffebee;
+        }
+
+        .btn-yes {
+            padding: 12px 32px;
+            border-radius: 60px;
+            border: none;
+            background: linear-gradient(135deg, #66bb6a, #43a047);
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+            font-family: 'Quicksand', sans-serif;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.25);
+            transition: 0.2s;
+            min-width: 100px;
+        }
+        .btn-yes:hover {
+            transform: scale(1.04);
+        }
+
+        .btn-group-horizontal {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        /* ----- Kết quả cuối cùng ----- */
+        .result-screen {
+            display: none;
+            text-align: center;
+            animation: fadeUp 0.6s ease;
+        }
+        .result-screen.active {
+            display: block;
+        }
+
+        .result-emoji {
+            font-size: 4.2rem;
+            margin-bottom: 6px;
+        }
+        .result-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #d81b60;
+            margin-bottom: 8px;
+        }
+        .result-sub {
+            font-size: 1.05rem;
+            color: #555;
+            line-height: 1.7;
+            margin: 12px 0 6px;
+        }
+        .result-data {
+            background: #f5f5f5;
+            border-radius: 20px;
+            padding: 18px 20px;
+            margin: 16px 0;
+            font-size: 0.95rem;
+            color: #333;
+            text-align: left;
+        }
+        .result-data strong {
+            color: #d81b60;
+        }
+
+        /* Confetti (nổ) */
+        .confetti-piece {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            pointer-events: none;
+            z-index: 999;
+            animation: confettiFall linear forwards;
+        }
+        @keyframes confettiFall {
+            0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+            100% { opacity: 0; transform: translateY(100vh) rotate(720deg) scale(0.2); }
+        }
+
+        /* ----- Responsive ----- */
+        @media (max-width: 480px) {
+            .quiz-container {
+                padding: 22px 16px 28px;
+                border-radius: 28px;
+            }
+            .q-title {
+                font-size: 1.05rem;
+            }
+            .option-btn {
+                padding: 12px 16px;
+                font-size: 0.92rem;
+            }
+            .btn-next {
+                font-size: 0.95rem;
+                padding: 14px;
+            }
+            .info-box {
+                font-size: 0.92rem;
+                padding: 16px;
+            }
+            .btn-group-horizontal {
+                gap: 12px;
+            }
+            .btn-yes, .btn-no-run {
+                padding: 10px 22px;
+                font-size: 0.9rem;
+                min-width: 80px;
+            }
+            .result-title {
+                font-size: 1.4rem;
+            }
+            .lyric-box {
+                font-size: 0.85rem;
+                padding: 18px 14px;
+                min-height: 120px;
+            }
+        }
+
+        /* Ẩn nút điều hướng */
+        .hide-nav {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Bong bóng (JS tạo sau) -->
+
+    <!-- Container chính -->
+    <div class="quiz-container" id="app">
+        <!-- Progress -->
+        <div class="progress-wrap">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <!-- Các bước câu hỏi (10 bước) -->
+        <div id="stepContainer">
+            <!-- Step 1..10 sẽ được render bằng JS -->
+        </div>
+
+        <!-- Màn hình kết quả (ẩn ban đầu) -->
+        <div class="result-screen" id="resultScreen">
+            <div class="result-emoji">🎉</div>
+            <div class="result-title">Chúc mừng bạn đã hoàn thành!</div>
+            <div class="result-sub">Cảm ơn bạn đã chơi cùng mình nhé!</div>
+            <div class="result-data" id="resultData"></div>
+            <div style="margin-top:14px; font-size:0.9rem; color:#888;">💖 Hẹn gặp lại bạn ở những quiz sau!</div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 1. DỮ LIỆU CÂU HỎI
+        // ============================================================
+        const questions = [{
+            id: 1,
+            type: 'input',
+            question: 'Đầu tiên, cho mình biết tên của bạn nhé?',
+            placeholder: 'Nhập tên của bạn...',
+            storageKey: 'userName'
+        }, {
+            id: 2,
+            type: 'date',
+            question: 'Sinh nhật bạn ngày nào thế?',
+            placeholder: 'Chọn ngày sinh',
+            storageKey: 'userBirth'
+        }, {
+            id: 3,
+            type: 'info',
+            question: '🎂 Cung Hoàng Đạo của bạn là...',
+            infoHTML: `<div class="info-box">
+                🌊 Người có trái tim nhân hậu, giàu cảm xúc và cực kỳ lãng mạn.<br>
+                🐟 Tính cách: mơ mộng, nhạy cảm, nhưng đôi khi hơi... "cá vàng" một tí 😂
+            </div>`
+        }, {
+            id: 4,
+            type: 'choice',
+            question: '🧪 Cân bằng phương trình hóa học sau:<br> <strong>Fe + O₂ → Fe₃O₄</strong>',
+            options: [
+                { label: 'A. 3Fe + 2O₂ → Fe₃O₄', correct: true },
+                { label: 'B. Fe + O₂ → FeO', correct: false },
+                { label: 'C. 2Fe + O₂ → Fe₂O₃', correct: false },
+                { label: 'D. 4Fe + 3O₂ → 2Fe₂O₃', correct: false }
+            ],
+            correctMessage: '✅ Chuẩn quá! Bạn giỏi hóa thật đấy!',
+            wrongMessage: '❌ Sai rồi! Đáp án đúng là A: 3Fe + 2O₂ → Fe₃O₄ nha!'
+        }, {
+            id: 5,
+            type: 'input',
+            question: '🎨 Màu sắc nào làm bạn rung động nhất?',
+            placeholder: 'Ví dụ: Xanh dương, Hồng, Vàng...',
+            storageKey: 'userColor'
+        }, {
+            id: 6,
+            type: 'lyric',
+            question: '🎵 Giải lao một chút nào!',
+            lyricLines: [
+                '"Hạnh phúc cuối cùng"',
+                'Hạnh phúc là khi ta còn nhau',
+                'Hạnh phúc là những phút giây ngọt ngào',
+                'Cho dù mai đây có cách xa',
+                'Vẫn nhớ mãi những tháng năm bên nhau...',
+                '🎶 Cảm ơn vì đã lắng nghe!'
+            ]
+        }, {
+            id: 7,
+            type: 'choice_troll',
+            question: '🤔 Trong giờ kiểm tra, có người nói với bạn:<br><i>"Anh có tài liệu em có muốn lấy không?"</i>',
+            options: [
+                { label: 'Có', value: 'yes' },
+                { label: 'Không', value: 'no' }
+            ],
+            responseYes: '😂 "Anh có tài, liệu em có muốn lấy không?" — Đang kiểm tra mà thả thính cái chi!',
+            responseNo: '😅 Vậy rớt rồi! Sai bét!'
+        }, {
+            id: 8,
+            type: 'choice_cute',
+            question: '🐾 Đâu là vật dễ thương nhất?',
+            options: [
+                { label: '🐱 Mèo', emoji: '🐱' },
+                { label: '🐶 Chó', emoji: '🐶' },
+                { label: '🐰 Thỏ', emoji: '🐰' },
+                { label: '🐼 Gấu trúc', emoji: '🐼' }
+            ],
+            reveal: '💖 Đáp án đúng là... E - EM ĐÓ! (dễ thương hơn tất cả 😉)'
+        }, {
+            id: 9,
+            type: 'input',
+            question: '🍜 Nếu có một người thân sơ sơ mời đi ăn, bạn muốn ăn món gì?',
+            placeholder: 'Món ăn yêu thích của bạn...',
+            storageKey: 'userFood'
+        }, {
+            id: 10,
+            type: 'runaway',
+            question: '😢 Bạn còn buồn nữa không?',
+            textYes: 'Có',
+            textNo: 'Không'
+        }];
+
+        // ============================================================
+        // 2. STATE
+        // ============================================================
+        let currentStep = 0;
+        const answers = {}; // lưu câu trả lời
+        let isQuizDone = false;
+
+        // DOM refs
+        const stepContainer = document.getElementById('stepContainer');
+        const progressBar = document.getElementById('progressBar');
+        const resultScreen = document.getElementById('resultScreen');
+        const resultData = document.getElementById('resultData');
+
+        // ============================================================
+        // 3. RENDER HÀM
+        // ============================================================
+        function renderStep(index) {
+            const q = questions[index];
+            if (!q) return;
+
+            // Ẩn result
+            resultScreen.classList.remove('active');
+            resultScreen.style.display = 'none';
+
+            let html = `<div class="question-step active" id="step-${index}">`;
+            html += `<div class="q-number">Câu ${index+1}/${questions.length}</div>`;
+            html += `<div class="q-title">${q.question}</div>`;
+
+            // Xử lý theo loại
+            switch (q.type) {
+                case 'input':
+                    html += `<input class="input-field" type="text" id="input-${index}" placeholder="${q.placeholder || ''}" value="${answers[q.storageKey] || ''}">`;
+                    html +=
+                        `<button class="btn-next" id="next-${index}" onclick="handleNext(${index})" disabled>Tiếp theo →</button>`;
+                    break;
+
+                case 'date':
+                    html += `<input class="input-field" type="date" id="date-${index}" placeholder="${q.placeholder || ''}" value="${answers[q.storageKey] || ''}">`;
+                    html +=
+                        `<button class="btn-next" id="next-${index}" onclick="handleNext(${index})" disabled>Tiếp theo →</button>`;
+                    break;
+
+                case 'info':
+                    html += q.infoHTML;
+                    html += `<button class="btn-next" onclick="handleNext(${index})">Tiếp theo →</button>`;
+                    break;
+
+                case 'choice':
+                    html += `<div class="options-grid" id="choices-${index}">`;
+                    q.options.forEach((opt, oi) => {
+                        const letter = String.fromCharCode(65 + oi);
+                        html += `<div class="option-btn" data-index="${index}" data-optindex="${oi}" onclick="handleChoice(${index}, ${oi})">
+                                    <span class="opt-label">${letter}.</span> ${opt.label}
+                                </div>`;
+                    });
+                    html += `</div>`;
+                    html += `<div id="feedback-${index}" style="margin:12px 0; font-weight:600; font-size:1rem;"></div>`;
+                    html +=
+                        `<button class="btn-next" id="next-${index}" onclick="handleNext(${index})" disabled>Tiếp theo →</button>`;
+                    break;
+
+                case 'lyric':
+                    html += `<div class="lyric-box" id="lyricBox">`;
+                    q.lyricLines.forEach(line => {
+                        html += `<div class="lyric-line">${line}</div>`;
+                    });
+                    html += `</div>`;
+                    html += `<div style="text-align:center; margin-top:8px;">`;
+                    html += `<button class="btn-play" onclick="playLyric()">▶ Phát nhạc (lời)</button>`;
+                    html += `</div>`;
+                    html += `<button class="btn-next" onclick="handleNext(${index})" style="margin-top:20px;">Tiếp theo →</button>`;
+                    break;
+
+                case 'choice_troll':
+                    html += `<div class="options-grid" id="choices-${index}">`;
+                    q.options.forEach((opt, oi) => {
+                        html += `<div class="option-btn" data-index="${index}" data-optindex="${oi}" onclick="handleTrollChoice(${index}, ${oi})">
+                                    <span class="opt-label">${oi === 0 ? 'A.' : 'B.'}</span> ${opt.label}
+                                </div>`;
+                    });
+                    html += `</div>`;
+                    html += `<div id="feedback-${index}" style="margin:12px 0; font-weight:600; font-size:1rem;"></div>`;
+                    html +=
+                        `<button class="btn-next" id="next-${index}" onclick="handleNext(${index})" disabled>Tiếp theo →</button>`;
+                    break;
+
+                case 'choice_cute':
+                    html += `<div class="options-grid" id="choices-${index}">`;
+                    q.options.forEach((opt, oi) => {
+                        const letter = String.fromCharCode(65 + oi);
+                        html += `<div class="option-btn" data-index="${index}" data-optindex="${oi}" onclick="handleCuteChoice(${index}, ${oi})">
+                                    <span class="opt-label">${letter}.</span> ${opt.label}
+                                </div>`;
+                    });
+                    html += `</div>`;
+                    html += `<div id="feedback-${index}" style="margin:12px 0; font-weight:600; font-size:1rem; color:#d81b60;"></div>`;
+                    html +=
+                        `<button class="btn-next" id="next-${index}" onclick="handleNext(${index})" disabled>Tiếp theo →</button>`;
+                    break;
+
+                case 'runaway':
+                    html += `<div class="btn-group-horizontal" id="runawayGroup">`;
+                    html += `<button class="btn-yes" onclick="handleRunawayYes()">${q.textYes}</button>`;
+                    html += `<button class="btn-no-run" id="btnNoRun" onclick="handleRunawayNo()">${q.textNo}</button>`;
+                    html += `</div>`;
+                    html += `<div id="feedback-${index}" style="margin:16px 0; font-weight:600; font-size:1.1rem; text-align:center;"></div>`;
+                    // Không có nút next, tự kết thúc
+                    break;
+
+                default:
+                    html += `<p>Nội dung đang được cập nhật...</p>`;
+                    html += `<button class="btn-next" onclick="handleNext(${index})">Tiếp theo →</button>`;
+            }
+
+            html += `</div>`;
+            stepContainer.innerHTML = html;
+
+            // Cập nhật progress
+            const progress = ((index) / questions.length) * 100;
+            progressBar.style.width = progress + '%';
+
+            // Gắn sự kiện cho input (bật nút next)
+            const inputField = document.querySelector(`#input-${index}, #date-${index}`);
+            if (inputField) {
+                inputField.addEventListener('input', function() {
+                    const btn = document.getElementById(`next-${index}`);
+                    if (btn) {
+                        btn.disabled = this.value.trim() === '';
+                        if (this.value.trim() !== '') {
+                            // lưu tạm
+                            const qq = questions[index];
+                            if (qq.storageKey) answers[qq.storageKey] = this.value.trim();
+                        }
+                    }
+                });
+                // nếu đã có giá trị từ trước
+                if (inputField.value.trim() !== '') {
+                    const btn = document.getElementById(`next-${index}`);
+                    if (btn) btn.disabled = false;
+                }
+            }
+
+            // Riêng câu 10: thêm sự kiện chạy trốn
+            if (q.type === 'runaway') {
+                setupRunaway();
+            }
+
+            // Scroll lên đầu (mobile)
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ============================================================
+        // 4. XỬ LÝ CÁC LOẠI CÂU HỎI
+        // ============================================================
+
+        // --- Choice thường (câu 4) ---
+        let choiceLocked = false;
+
+        function handleChoice(stepIdx, optIdx) {
+            if (choiceLocked) return;
+            const q = questions[stepIdx];
+            const btns = document.querySelectorAll(`#choices-${stepIdx} .option-btn`);
+            const feedback = document.getElementById(`feedback-${stepIdx}`);
+            const nextBtn = document.getElementById(`next-${stepIdx}`);
+
+            btns.forEach((btn, i) => {
+                btn.classList.add('disabled-opt');
+                if (i === optIdx) {
+                    if (q.options[optIdx].correct) {
+                        btn.classList.add('correct');
+                        feedback.innerHTML = `✅ ${q.correctMessage || 'Đúng rồi!'}`;
+                        feedback.style.color = '#43a047';
+                    } else {
+                        btn.classList.add('wrong');
+                        const correctIdx = q.options.findIndex(o => o.correct);
+                        const correctLabel = String.fromCharCode(65 + correctIdx);
+                        feedback.innerHTML = `❌ ${q.wrongMessage || 'Sai rồi!'}`;
+                        feedback.style.color = '#ef5350';
+                        // highlight đáp án đúng
+                        btns.forEach((b, idx) => {
+                            if (q.options[idx].correct) b.classList.add('correct');
+                        });
+                    }
+                }
+            });
+            choiceLocked = true;
+            nextBtn.disabled = false;
+        }
+
+        // --- Troll choice (câu 7) ---
+        function handleTrollChoice(stepIdx, optIdx) {
+            if (choiceLocked) return;
+            const q = questions[stepIdx];
+            const btns = document.querySelectorAll(`#choices-${stepIdx} .option-btn`);
+            const feedback = document.getElementById(`feedback-${stepIdx}`);
+            const nextBtn = document.getElementById(`next-${stepIdx}`);
+
+            btns.forEach((btn, i) => {
+                btn.classList.add('disabled-opt');
+                if (i === optIdx) {
+                    btn.classList.add('wrong');
+                    if (q.options[optIdx].value === 'yes') {
+                        feedback.innerHTML = q.responseYes;
+                    } else {
+                        feedback.innerHTML = q.responseNo;
+                    }
+                    feedback.style.color = '#e65100';
+                }
+            });
+            choiceLocked = true;
+            nextBtn.disabled = false;
+        }
+
+        // --- Cute choice (câu 8) ---
+        function handleCuteChoice(stepIdx, optIdx) {
+            if (choiceLocked) return;
+            const q = questions[stepIdx];
+            const btns = document.querySelectorAll(`#choices-${stepIdx} .option-btn`);
+            const feedback = document.getElementById(`feedback-${stepIdx}`);
+            const nextBtn = document.getElementById(`next-${stepIdx}`);
+
+            btns.forEach((btn, i) => {
+                btn.classList.add('disabled-opt');
+                if (i === optIdx) {
+                    btn.classList.add('wrong');
+                    feedback.innerHTML = `❌ Sai rồi! <br> ${q.reveal}`;
+                    feedback.style.color = '#d81b60';
+                }
+            });
+            choiceLocked = true;
+            nextBtn.disabled = false;
+        }
+
+        // --- Runaway (câu 10) ---
+        function setupRunaway() {
+            const btnNo = document.getElementById('btnNoRun');
+            if (!btnNo) return;
+
+            // Lưu vị trí ban đầu
+            let noX = 0,
+                noY = 0;
+
+            // Khi hover vào nút "Không"
+            btnNo.addEventListener('mouseover', function(e) {
+                if (this.style.position !== 'absolute') {
+                    // chuyển sang absolute để di chuyển
+                    this.style.position = 'relative';
+                }
+                // di chuyển random trong vùng chứa
+                const parent = this.parentElement;
+                const parentRect = parent.getBoundingClientRect();
+                const btnRect = this.getBoundingClientRect();
+
+                const maxX = parentRect.width - btnRect.width - 10;
+                const maxY = parentRect.height - btnRect.height - 10;
+
+                const newX = Math.floor(Math.random() * Math.max(10, maxX));
+                const newY = Math.floor(Math.random() * Math.max(10, maxY));
+
+                this.style.position = 'absolute';
+                this.style.left = newX + 'px';
+                this.style.top = newY + 'px';
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => { this.style.transform = 'scale(1)'; }, 100);
+            });
+
+            // Trên mobile: khi touch start cũng chạy
+            btnNo.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                const parent = this.parentElement;
+                const parentRect = parent.getBoundingClientRect();
+                const btnRect = this.getBoundingClientRect();
+
+                const maxX = parentRect.width - btnRect.width - 10;
+                const maxY = parentRect.height - btnRect.height - 10;
+
+                const newX = Math.floor(Math.random() * Math.max(10, maxX));
+                const newY = Math.floor(Math.random() * Math.max(10, maxY));
+
+                this.style.position = 'absolute';
+                this.style.left = newX + 'px';
+                this.style.top = newY + 'px';
+            });
+        }
+
+        let runawayDone = false;
+
+        function handleRunawayYes() {
+            if (runawayDone) return;
+            runawayDone = true;
+            const fb = document.getElementById('feedback-9');
+            if (fb) {
+                fb.innerHTML = '🥰 Nhớ là không buồn nữa nha!';
+                fb.style.color = '#43a047';
+            }
+            // Vô hiệu hóa nút no
+            const btnNo = document.getElementById('btnNoRun');
+            if (btnNo) {
+                btnNo.style.opacity = '0.4';
+                btnNo.style.pointerEvents = 'none';
+            }
+            // Tự động kết thúc sau 1.5s
+            setTimeout(() => {
+                finishQuiz();
+            }, 1500);
+        }
+
+        function handleRunawayNo() {
+            // không làm gì, nút sẽ chạy
+        }
+
+        // --- Lyric (câu 6) ---
+        function playLyric() {
+            const box = document.getElementById('lyricBox');
+            if (!box) return;
+            // thêm animation lại nếu cần
+            const lines = box.querySelectorAll('.lyric-line');
+            lines.forEach((line, idx) => {
+                line.style.animation = 'none';
+                line.style.opacity = '0';
+                setTimeout(() => {
+                    line.style.animation = `lyricFade 0.6s forwards`;
+                    line.style.animationDelay = `${idx * 0.7}s`;
+                }, 50);
+            });
+        }
+
+        // --- Next chung ---
+        function handleNext(stepIdx) {
+            if (stepIdx !== currentStep) return;
+            // Lưu input nếu có
+            const q = questions[stepIdx];
+            if (q.type === 'input' || q.type === 'date') {
+                const input = document.querySelector(`#input-${stepIdx}, #date-${stepIdx}`);
+                if (input && q.storageKey) {
+                    answers[q.storageKey] = input.value.trim();
+                }
+            }
+
+            // Chuyển sang bước tiếp theo
+            if (currentStep < questions.length - 1) {
+                currentStep++;
+                choiceLocked = false;
+                renderStep(currentStep);
+                // Sau khi render, active step hiện tại
+                const allSteps = document.querySelectorAll('.question-step');
+                allSteps.forEach(s => s.classList.remove('active'));
+                const activeStep = document.getElementById(`step-${currentStep}`);
+                if (activeStep) activeStep.classList.add('active');
+            } else {
+                // Nếu đã hết câu hỏi
+                finishQuiz();
+            }
+        }
+
+        // ============================================================
+        // 5. KẾT THÚC QUIZ
+        // ============================================================
+        function finishQuiz() {
+            if (isQuizDone) return;
+            isQuizDone = true;
+
+            // Ẩn hết các step
+            stepContainer.innerHTML = '';
+            progressBar.style.width = '100%';
+
+            // Hiện result
+            resultScreen.style.display = 'block';
+            setTimeout(() => {
+                resultScreen.classList.add('active');
+            }, 50);
+
+            // Hiển thị dữ liệu đã lưu
+            const name = answers.userName || 'Bạn';
+            const birth = answers.userBirth || 'Chưa nhập';
+            const color = answers.userColor || 'Chưa nhập';
+            const food = answers.userFood || 'Chưa nhập';
+
+            resultData.innerHTML = `
+                <strong>Tên:</strong> ${name}<br>
+                <strong>Ngày sinh:</strong> ${birth}<br>
+                <strong>Màu sắc yêu thích:</strong> ${color}<br>
+                <strong>Món ăn muốn ăn:</strong> ${food}<br>
+                <hr style="margin:10px 0; border: none; border-top:2px dashed #f06292;">
+                <span style="font-style:italic; color:#d81b60;">🌸 Cảm ơn bạn đã tham gia quiz vui nhộn!</span>
+            `;
+
+            // Bắn confetti
+            launchConfetti();
+
+            // Xóa nút back (không cho quay lại)
+            // (đã không có nút back từ đầu)
+        }
+
+        // ============================================================
+        // 6. CONFETTI 🎉
+        // ============================================================
+        function launchConfetti() {
+            const colors = ['#f06292', '#ffb74d', '#66bb6a', '#42a5f5', '#ab47bc', '#ffca28'];
+            for (let i = 0; i < 80; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.left = Math.random() * 100 + 'vw';
+                piece.style.top = '-10px';
+                piece.style.width = (Math.random() * 8 + 4) + 'px';
+                piece.style.height = (Math.random() * 8 + 4) + 'px';
+                piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                piece.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                piece.style.animationDelay = (Math.random() * 2) + 's';
+                document.body.appendChild(piece);
+                setTimeout(() => piece.remove(), 5000);
+            }
+        }
+
+        // ============================================================
+        // 7. BONG BÓNG NỀN
+        // ============================================================
+        function createBubbles() {
+            const emojis = ['🌸', '💫', '✨', '🦋', '🐾'];
+            for (let i = 0; i < 12; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                bubble.style.fontSize = (Math.random() * 20 + 16) + 'px';
+                bubble.style.left = Math.random() * 95 + 'vw';
+                bubble.style.animationDuration = (Math.random() * 15 + 12) + 's';
+                bubble.style.animationDelay = (Math.random() * 10) + 's';
+                document.body.appendChild(bubble);
+            }
+        }
+        createBubbles();
+
+        // ============================================================
+        // 8. KHỞI TẠO
+        // ============================================================
+        renderStep(0);
+        // active step đầu
+        const firstStep = document.getElementById('step-0');
+        if (firstStep) firstStep.classList.add('active');
+
+        // Không cho back (disable phím back)
+        window.addEventListener('popstate', function(e) {
+            e.preventDefault();
+            history.pushState(null, '', window.location.href);
+        });
+        history.pushState(null, '', window.location.href);
+
+        console.log('🎉 Quiz vui nhộn đã sẵn sàng!');
+    </script>
+</body>
+</html>
